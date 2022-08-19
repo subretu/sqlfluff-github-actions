@@ -1,0 +1,43 @@
+name: SQL Format Check
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+# ファイルを変更の権限付与
+permissions: write-all
+
+env:
+  TARGET_BRANCH: ${{ github.base_ref }}
+
+jobs:
+  format-sql:
+    runs-on: ubuntu-latest
+    steps:
+      # pythonのインストール
+      - uses: "actions/setup-python@v2"
+        with:
+            python-version: "3.9"
+      # SQLFluffのインストール
+      - name: Install SQLFluff
+        run: "pip install sqlfluff==1.0.0"
+      # fakettyのインストール
+      - name: Install faketty
+        uses: Yuri6037/Action-FakeTTY@v1.1
+      # プルリクのブランチにチェックアウト
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+      # SQLFluffの実行
+      - name: 'sql format'
+        run: |
+          for file in $(git diff origin/${TARGET_BRANCH} HEAD --diff-filter=AM --name-only -r -- sql);
+          do
+            sqlfluff fix ${file} --rules L001,L002,L004,L006,L010,L019 --dialect postgres -f
+          done
+      # 変更内容をコミット
+      - name: commit
+        uses: stefanzweifel/git-auto-commit-action@v3.0.0
+        with:
+          commit_message: format by sqlfluff
